@@ -1,0 +1,72 @@
+# Python cache & compiled files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.dylib
+
+# Byte-compiled / optimized / DLL files
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# OS / Editor specific
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs & reports
+logs/
+*.log
+reports/figures/
+reports/model_card.md
+
+# Model artifacts & checkpoints
+models/artifacts/
+models/metrics/
+*.joblib
+*.pkl
+*.h5
+*.pt
+*.onnx
+*.ckpt
+
+# Data directories (raw, interim, processed)
+data/raw/
+data/interim/
+data/processed/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Build / distribution
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Test & coverage
+.coverage
+htmlcov/
+pytest_cache/
+.tox/
+.mypy_cache/
+.pytest_cache/
