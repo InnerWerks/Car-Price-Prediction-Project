@@ -6,16 +6,16 @@ from typing import Optional
 def load_cfg(path):
     p = Path(path)
     if p.is_dir():
-        files = ["dataset.yaml","model.yaml","train.yaml","eval.yaml"]
+        files = ["dataset.yaml", "model.yaml", "train.yaml", "eval.yaml"]
         cfg = {}
         for f in files:
-            cfg[f.split(".")[0]] = yaml.safe_load(open(p/f))
+            cfg[f.split(".")[0]] = yaml.safe_load(open(p / f))
         return cfg
     return yaml.safe_load(open(p))
 
 def ensure_dirs(cfg):
     paths = cfg["dataset"]["paths"]
-    for k in ["raw","interim","processed"]:
+    for k in ["raw", "interim", "processed"]:
         Path(paths[k]).mkdir(parents=True, exist_ok=True)
     Path("models/artifacts").mkdir(parents=True, exist_ok=True)
     Path("models/metrics").mkdir(parents=True, exist_ok=True)
@@ -61,7 +61,7 @@ def cmd_init_venv(spawn_shell: bool = False):
 
     # Upgrade pip and essential build tools
     print("[venv] Upgrading pip, setuptools, wheel...")
-    subprocess.check_call([str(python), "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"]) 
+    subprocess.check_call([str(python), "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"])
 
     # Install requirements if present
     if req_file.exists():
@@ -90,7 +90,7 @@ def cmd_init_venv(spawn_shell: bool = False):
             # Spawn interactive bash/zsh with venv activated
             shell = shutil.which(os.environ.get("SHELL", "bash")) or "/bin/bash"
             print(f"[venv] Spawning activated shell: {shell} ...")
-            os.execvp(shell, [shell, "-i", "-c", f"source '{activate}'; exec {shell} -i"]) 
+            os.execvp(shell, [shell, "-i", "-c", f"source '{activate}'; exec {shell} -i"])  
 
 def _load_env_from_dotenv(dotenv_path: Path) -> None:
     try:
@@ -169,9 +169,35 @@ def cmd_build_data(cfg, raw_filename: Optional[str] = None):
     preprocess_and_persist(df_tr, df_va, df_te, cfg)
     print("[data] Saved processed datasets to data/processed/ and preprocessor to models/artifacts/")
 
+def cmd_train(cfg):
+    """Wrapper for training to keep CLI symmetry with other commands."""
+    from src.training.train import train_and_save
+
+    result = train_and_save(cfg)
+
+    print(f"[train] Run: {result['run_name']}")
+    print(f"[train] Model saved to: {result['model_path']}")
+    print(f"[train] Metrics saved to: {result['metrics_path']}")
+    print(f"[train] Val: {result['val_metrics']}")
+    print(f"[train] Test: {result['test_metrics']}")
+    if result.get("best_updated"):
+        print("[train] Updated models/version.txt with new best model.")
+
+    return result
+
+def cmd_evaluate(cfg):
+    """Optional: wrapper for evaluation for consistency."""
+    from src.training.evaluate import evaluate_saved_model
+
+    out = evaluate_saved_model(cfg)
+    print(f"[evaluate] Model: {out['model_path']}")
+    print(f"[evaluate] Test metrics: {out['test']}")
+    print(f"[evaluate] Figures: {out['figures']}")
+    return out
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("command", choices=["prepare","init-venv","download-data","build-data"])
+    ap.add_argument("command", choices=["prepare", "init-venv", "download-data", "build-data", "train", "evaluate"])
     ap.add_argument("--config", default="configs")
     ap.add_argument("--input", default=None)
     ap.add_argument("--shell", action="store_true", help="After setup, spawn an activated shell (POSIX/Windows)")
@@ -189,6 +215,10 @@ def main():
         cmd_download_data(cfg, dataset_slug=a.dataset, force=a.force)
     elif a.command == "build-data":
         cmd_build_data(cfg, raw_filename=a.raw_filename)
+    elif a.command == "train":
+        cmd_train(cfg)
+    elif a.command == "evaluate":
+        cmd_evaluate(cfg)
 
 if __name__ == "__main__":
     main()
