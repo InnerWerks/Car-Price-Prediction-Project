@@ -15,6 +15,71 @@ Contains various attributes:
 - Transmission
 - Owner
 
+## Codebase Structure
+
+```
+Car-Price-Prediction-Project/
+├─ README.md
+├─ .gitignore
+├─ .env.example
+├─ requirements.txt        # core deps shared across projects
+├─ requirements-text.txt   # +nltk/spacy (only for NLP)
+├─ requirements-vision.txt # +torch/torchvision or tensorflow (only for CV)
+├─ Makefile                # convenience targets (see below)
+├─ configs/
+│  ├─ dataset.yaml         # paths, target, splits, modality
+│  ├─ model.yaml           # model family & hyperparams
+│  ├─ train.yaml           # epochs, batch_size, class_weights, seed
+│  └─ eval.yaml            # metrics to compute/report
+├─ data/
+│  ├─ raw/                 # original data (not tracked by git)
+│  ├─ interim/             # cleaned/standardized (e.g., tokenized text)
+│  └─ processed/           # train/val/test ready for modeling
+├─ models/
+│  ├─ artifacts/           # .joblib / .pt / .h5 files
+│  ├─ metrics/             # JSON/CSV metric logs per run
+│  └─ version.txt          # pointer to "best" model
+├─ notebooks/
+│  ├─ 01_eda.ipynb
+│  ├─ 02_baseline.ipynb
+│  └─ 03_experiments.ipynb
+├─ reports/
+│  ├─ figures/             # plots saved by EDA/eval
+│  └─ model_card.md        # short, human-readable summary
+├─ scripts/
+│  ├─ download_data.sh     # optional data fetcher
+│  ├─ run_train.sh
+│  └─ run_eval.sh
+├─ src/
+│  ├─ __init__.py
+│  ├─ cli.py               # `python -m src.cli <cmd> --config ...`
+│  ├─ utils/
+│  │  ├─ io.py             # load/save, path helpers
+│  │  ├─ logging.py        # run id, console/file logs
+│  │  └─ metrics.py        # RMSE/MAE/ROC AUC/F1, etc.
+│  ├─ data/
+│  │  ├─ load.py           # reads raw -> dataframe/paths
+│  │  ├─ split.py          # stratified/temporal splits
+│  │  └─ preprocess.py     # dispatches by modality
+│  ├─ features/
+│  │  ├─ tabular.py        # scaling, OHE/target enc, imputation
+│  │  ├─ text.py           # clean, tokenize, TF-IDF/embeddings
+│  │  └─ vision.py         # resize/normalize/augment
+│  ├─ models/
+│  │  ├─ tabular.py        # sklearn pipelines (LR/RF/XGB/LGBM)
+│  │  ├─ text.py           # NB/LinearSVM + TF-IDF; optional deep
+│  │  └─ vision.py         # CNN/transfer learning (Torch/TensorFlow)
+│  ├─ training/
+│  │  ├─ train.py          # fit loop; saves model+metrics
+│  │  └─ evaluate.py       # loads model; computes metrics & plots
+│  └─ inference/
+│     └─ predict.py        # batch/CLI prediction entrypoint
+└─ tests/
+   ├─ test_data.py
+   ├─ test_features.py
+   └─ test_models.py
+```
+
 ## Project Workflow
 
 1. **Data Loading & Cleaning**  
