@@ -197,7 +197,10 @@ def cmd_evaluate(cfg):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("command", choices=["prepare", "init-venv", "download-data", "build-data", "train", "evaluate"])
+    ap.add_argument(
+        "command",
+        choices=["prepare", "init-venv", "download-data", "build-data", "train", "evaluate"],
+    )
     ap.add_argument("--config", default="configs")
     ap.add_argument("--input", default=None)
     ap.add_argument("--shell", action="store_true", help="After setup, spawn an activated shell (POSIX/Windows)")
