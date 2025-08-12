@@ -159,14 +159,36 @@ def cmd_download_data(cfg, dataset_slug: Optional[str] = None, force: bool = Fal
 
     print("[kaggle] Download complete.")
 
+def cmd_build_data(cfg, raw_filename: Optional[str] = None):
+    from src.data.load import load_raw_df
+    from src.data.split import split_dataframe, persist_interim_splits
+    from src.data.preprocess import preprocess_and_persist
+
+    # Ensure folders exist
+    ensure_dirs(cfg)
+
+    print("[data] Loading raw dataset...")
+    df, path = load_raw_df(cfg, filename=raw_filename)
+    print(f"[data] Loaded {len(df):,} rows from {path}")
+
+    print("[data] Splitting into train/val/test...")
+    df_tr, df_va, df_te = split_dataframe(df, cfg)
+    persist_interim_splits(df_tr, df_va, df_te, cfg)
+    print("[data] Saved interim splits to data/interim/")
+
+    print("[data] Preprocessing and writing processed datasets...")
+    preprocess_and_persist(df_tr, df_va, df_te, cfg)
+    print("[data] Saved processed datasets to data/processed/ and preprocessor to models/artifacts/")
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("command", choices=["prepare","train","evaluate","predict","init-venv","download-data"]) 
+    ap.add_argument("command", choices=["prepare","train","evaluate","predict","init-venv","download-data","build-data"]) 
     ap.add_argument("--config", default="configs")
     ap.add_argument("--input", default=None)
     ap.add_argument("--shell", action="store_true", help="After setup, spawn an activated shell (POSIX/Windows)")
     ap.add_argument("--dataset", default=None, help="Kaggle dataset slug (owner/dataset)")
     ap.add_argument("--force", action="store_true", help="Force re-download from Kaggle (overwrite)")
+    ap.add_argument("--raw-filename", default=None, help="Raw CSV filename in data/raw (optional)")
     a = ap.parse_args()
     cfg = load_cfg(a.config)
 
@@ -180,6 +202,8 @@ def main():
         cmd_init_venv(spawn_shell=a.shell)
     elif a.command == "download-data":
         cmd_download_data(cfg, dataset_slug=a.dataset, force=a.force)
+    elif a.command == "build-data":
+        cmd_build_data(cfg, raw_filename=a.raw_filename)
 
 if __name__ == "__main__":
     main()

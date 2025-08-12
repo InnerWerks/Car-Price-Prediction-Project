@@ -1,4 +1,4 @@
-.PHONY: help venv shell download redownload download-dataset prepare train evaluate notebooks
+.PHONY: help venv shell download redownload download-dataset prepare data train evaluate notebooks
 
 # Defaults
 PY ?= python
@@ -13,6 +13,7 @@ help:
 	@echo "  redownload        Force re-download dataset (overwrite)"
 	@echo "  download-dataset  Download with custom slug (set DATASET=owner/slug)"
 	@echo "  prepare           Create data/ and models/ directories"
+	@echo "  data              Build datasets: load/split/preprocess -> data/*"
 	@echo "  train             Run training (stub)"
 	@echo "  evaluate          Run evaluation (stub)"
 	@echo "  notebooks         Launch Jupyter Lab"
@@ -36,6 +37,9 @@ download-dataset:
 prepare:
 	$(CLI) prepare --config $(CONFIG)
 
+data:
+	$(CLI) build-data --config $(CONFIG)
+
 train:
 	$(CLI) train --config $(CONFIG)
 
@@ -44,4 +48,3 @@ evaluate:
 
 notebooks:
 	jupyter lab
-
