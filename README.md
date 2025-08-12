@@ -124,7 +124,7 @@ git clone https://github.com/InnerWerks/Car-Price-Prediction-Project.git
 cd car-price-prediction
 
 # Initialize a virtual environment
-make venv           # or: make shell to open an activated shell
+make venv
 
 # Configure Kaggle credentials
 cp .env.example .env   # then edit .env and set KAGGLE_USERNAME and KAGGLE_KEY
@@ -136,10 +136,8 @@ make download       # uses configs/dataset.yaml kaggle.dataset
 make prepare        # ensures data/ and models/ folders exist
 make data           # load -> split -> preprocess -> persist
 
-# Start notebooks or run other targets
+# Start notebooks
 make notebooks
-# or
-make train
 ```
 
 ## License

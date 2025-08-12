@@ -25,17 +25,6 @@ def cmd_prepare(cfg):
     ensure_dirs(cfg)
     print("[prepare] OK – created data/ & models/ dirs")
 
-def cmd_train(cfg):
-    ensure_dirs(cfg)
-    print("[train] stub – implement training loop in src/training/train.py")
-
-def cmd_evaluate(cfg):
-    ensure_dirs(cfg)
-    print("[evaluate] stub – implement eval in src/training/evaluate.py")
-
-def cmd_predict(cfg, inp):
-    print(f"[predict] stub – implement batch prediction for: {inp}")
-
 def _project_root() -> Path:
     # Assumes this file lives at <project>/src/cli.py
     return Path(__file__).resolve().parents[1]
@@ -182,7 +171,7 @@ def cmd_build_data(cfg, raw_filename: Optional[str] = None):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("command", choices=["prepare","train","evaluate","predict","init-venv","download-data","build-data"]) 
+    ap.add_argument("command", choices=["prepare","init-venv","download-data","build-data"])
     ap.add_argument("--config", default="configs")
     ap.add_argument("--input", default=None)
     ap.add_argument("--shell", action="store_true", help="After setup, spawn an activated shell (POSIX/Windows)")
@@ -192,12 +181,8 @@ def main():
     a = ap.parse_args()
     cfg = load_cfg(a.config)
 
-    if a.command == "prepare": cmd_prepare(cfg)
-    elif a.command == "train": cmd_train(cfg)
-    elif a.command == "evaluate": cmd_evaluate(cfg)
-    elif a.command == "predict":
-        if not a.input: sys.exit("predict requires --input")
-        cmd_predict(cfg, a.input)
+    if a.command == "prepare":
+        cmd_prepare(cfg)
     elif a.command == "init-venv":
         cmd_init_venv(spawn_shell=a.shell)
     elif a.command == "download-data":
