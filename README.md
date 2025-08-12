@@ -132,6 +132,10 @@ make download       # uses configs/dataset.yaml kaggle.dataset
 make prepare        # ensures data/ and models/ folders exist
 make data           # load -> split -> preprocess -> persist
 
+# Train the model and evaluate it
+make train          # train model and save artifacts/metrics
+make evaluate       # evaluate saved model and generate reports
+
 # Start notebooks
 make notebooks
 ```
