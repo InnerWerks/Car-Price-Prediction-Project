@@ -1,6 +1,7 @@
 # src/cli.py
 import argparse, sys, yaml, os, subprocess, venv, platform, shutil
 from pathlib import Path
+from typing import Optional
 
 def load_cfg(path):
     p = Path(path)
@@ -102,12 +103,70 @@ def cmd_init_venv(spawn_shell: bool = False):
             print(f"[venv] Spawning activated shell: {shell} ...")
             os.execvp(shell, [shell, "-i", "-c", f"source '{activate}'; exec {shell} -i"]) 
 
+def _load_env_from_dotenv(dotenv_path: Path) -> None:
+    try:
+        from dotenv import load_dotenv
+    except Exception:
+        print("[env] python-dotenv not installed. Proceeding without auto-loading .env.")
+        return
+    if dotenv_path.exists():
+        load_dotenv(dotenv_path)
+        print(f"[env] Loaded environment variables from {dotenv_path}")
+    else:
+        print(f"[env] No .env found at {dotenv_path} (skipping)")
+
+def _get_kaggle_dataset_slug(cfg, override: Optional[str]) -> Optional[str]:
+    if override:
+        return override
+    return (cfg.get("dataset", {}).get("kaggle", {}) or {}).get("dataset")
+
+def cmd_download_data(cfg, dataset_slug: Optional[str] = None, force: bool = False):
+    root = _project_root()
+    _load_env_from_dotenv(root / ".env")
+
+    # Validate credentials
+    user = os.getenv("KAGGLE_USERNAME")
+    key = os.getenv("KAGGLE_KEY")
+    if not user or not key:
+        sys.exit("[kaggle] Missing KAGGLE_USERNAME/KAGGLE_KEY in environment. Set them in .env or your shell.")
+
+    # Resolve dataset slug
+    slug = _get_kaggle_dataset_slug(cfg, dataset_slug)
+    if not slug:
+        sys.exit("[kaggle] Dataset slug not provided. Use --dataset or add dataset.kaggle.dataset in configs/dataset.yaml")
+
+    # Ensure output dirs
+    ensure_dirs(cfg)
+    raw_dir = Path(cfg["dataset"]["paths"]["raw"]).resolve()
+    raw_dir.mkdir(parents=True, exist_ok=True)
+
+    print(f"[kaggle] Downloading '{slug}' to {raw_dir} ...")
+    try:
+        from kaggle.api.kaggle_api_extended import KaggleApi
+    except Exception:
+        sys.exit("[kaggle] The 'kaggle' package is not installed. Activate your venv and run 'pip install kaggle'.")
+
+    api = KaggleApi()
+    try:
+        api.authenticate()
+    except Exception as e:
+        sys.exit(f"[kaggle] Authentication failed: {e}")
+
+    try:
+        api.dataset_download_files(dataset=slug, path=str(raw_dir), unzip=True, force=force, quiet=False)
+    except Exception as e:
+        sys.exit(f"[kaggle] Download failed: {e}")
+
+    print("[kaggle] Download complete.")
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("command", choices=["prepare","train","evaluate","predict","init-venv"]) 
+    ap.add_argument("command", choices=["prepare","train","evaluate","predict","init-venv","download-data"]) 
     ap.add_argument("--config", default="configs")
     ap.add_argument("--input", default=None)
     ap.add_argument("--shell", action="store_true", help="After setup, spawn an activated shell (POSIX/Windows)")
+    ap.add_argument("--dataset", default=None, help="Kaggle dataset slug (owner/dataset)")
+    ap.add_argument("--force", action="store_true", help="Force re-download from Kaggle (overwrite)")
     a = ap.parse_args()
     cfg = load_cfg(a.config)
 
@@ -119,6 +178,8 @@ def main():
         cmd_predict(cfg, a.input)
     elif a.command == "init-venv":
         cmd_init_venv(spawn_shell=a.shell)
+    elif a.command == "download-data":
+        cmd_download_data(cfg, dataset_slug=a.dataset, force=a.force)
 
 if __name__ == "__main__":
     main()

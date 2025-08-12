@@ -7,6 +7,9 @@ paths:
   interim: data/interim
   processed: data/processed
 
+kaggle:
+  dataset: bhavikjikadara/car-price-prediction-dataset
+
 split:
   strategy: random
   test_size: 0.2

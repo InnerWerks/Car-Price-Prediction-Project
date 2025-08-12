@@ -126,9 +126,15 @@ git clone https://github.com/InnerWerks/Car-Price-Prediction-Project.git
 cd car-price-prediction
 
 # Initialize a virtual environment via CLI
-python -m src.cli init-venv --shell
+python -m src.cli init-venv --shell  # creates .venv, installs deps, opens activated shell
 
-# Run CLI commands
+# Configure Kaggle credentials
+cp .env.example .env   # then edit .env and set KAGGLE_USERNAME and KAGGLE_KEY
+
+# Download the dataset into data/raw/ using Kaggle API
+python -m src.cli download-data       # uses configs/dataset.yaml kaggle.dataset
+
+# Prepare project directories (no-op if already created)
 python -m src.cli prepare
 ```
 
