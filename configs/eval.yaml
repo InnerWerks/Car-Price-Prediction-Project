@@ -1,0 +1,15 @@
+metrics:
+  regression:
+    - rmse
+    - mae
+    - r2
+
+plots:
+  feature_importances: true
+  residuals_plot: true
+  predicted_vs_actual: true
+
+report:
+  save_json: true
+  save_markdown: true
+  markdown_path: reports/model_card.md

@@ -1,0 +1,19 @@
+modality: tabular
+task: regression
+target: Selling_Price
+
+paths:
+  raw: data/raw
+  interim: data/interim
+  processed: data/processed
+
+split:
+  strategy: random
+  test_size: 0.2
+  val_size: 0.1
+
+features:
+  include: []
+  drop: [Car_Name]
+
+seed: 42

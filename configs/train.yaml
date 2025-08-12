@@ -1,0 +1,21 @@
+batch_size: null
+epochs: null
+
+early_stopping: true
+early_stopping_rounds: 50
+
+preprocess:
+  impute:
+    numeric: median
+    categorical: most_frequent
+  encode:
+    categorical: onehot
+  scale_numeric: standard
+
+logging:
+  run_name: car_price_xgb_baseline
+  save_every: best
+  artifacts_dir: models/artifacts
+  metrics_dir: models/metrics
+
+seed: 42
