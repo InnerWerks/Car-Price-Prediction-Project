@@ -23,8 +23,6 @@ Car-Price-Prediction-Project/
 ├─ .gitignore
 ├─ .env.example
 ├─ requirements.txt        # core deps shared across projects
-├─ requirements-text.txt   # +nltk/spacy (only for NLP)
-├─ requirements-vision.txt # +torch/torchvision or tensorflow (only for CV)
 ├─ Makefile                # convenience targets (see below)
 ├─ configs/
 │  ├─ dataset.yaml         # paths, target, splits, modality
