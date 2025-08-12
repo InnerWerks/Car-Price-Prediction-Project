@@ -125,11 +125,13 @@ git clone https://github.com/InnerWerks/Car-Price-Prediction-Project.git
 # Navigate into the project directory
 cd car-price-prediction
 
-# Install dependencies
-pip install -r requirements.txt
+# Initialize a virtual environment via CLI
+python -m src.cli init-venv --shell
 
-# Run Jupyter Notebook
-jupyter notebook CarPricePrediction.ipynb
+# Start notebooks or run CLI commands
+jupyter lab
+# or
+python -m src.cli prepare
 ```
 
 ## License
