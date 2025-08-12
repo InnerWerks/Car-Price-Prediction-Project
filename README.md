@@ -128,9 +128,7 @@ cd car-price-prediction
 # Initialize a virtual environment via CLI
 python -m src.cli init-venv --shell
 
-# Start notebooks or run CLI commands
-jupyter lab
-# or
+# Run CLI commands
 python -m src.cli prepare
 ```
 
