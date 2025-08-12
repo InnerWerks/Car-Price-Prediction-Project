@@ -60,13 +60,9 @@ Car-Price-Prediction-Project/
 │  │  ├─ split.py          # stratified/temporal splits
 │  │  └─ preprocess.py     # dispatches by modality
 │  ├─ features/
-│  │  ├─ tabular.py        # scaling, OHE/target enc, imputation
-│  │  ├─ text.py           # clean, tokenize, TF-IDF/embeddings
-│  │  └─ vision.py         # resize/normalize/augment
+│  │  └─ tabular.py        # scaling, OHE/target enc, imputation
 │  ├─ models/
-│  │  ├─ tabular.py        # sklearn pipelines (LR/RF/XGB/LGBM)
-│  │  ├─ text.py           # NB/LinearSVM + TF-IDF; optional deep
-│  │  └─ vision.py         # CNN/transfer learning (Torch/TensorFlow)
+│  │  └─ tabular.py        # sklearn pipelines (LR/RF/XGB/LGBM)
 │  ├─ training/
 │  │  ├─ train.py          # fit loop; saves model+metrics
 │  │  └─ evaluate.py       # loads model; computes metrics & plots
