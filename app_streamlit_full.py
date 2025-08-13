@@ -25,6 +25,7 @@ PRIMARY_METRIC = "r2"
 
 
 APP_STATE_DIR = Path("models/metrics/ui_last_run")
+CUSTOM_MODEL_DIR = Path("models/custom")
 
 
 def _persist_result(name: str, res: Dict[str, Any]) -> None:
@@ -381,18 +382,26 @@ with tab_train:
                 st.error(str(e))
 with tab_predict:
     st.subheader("Batch Predict")
+    CUSTOM_MODEL_DIR.mkdir(parents=True, exist_ok=True)
     info = best_model_info()
+    allowed_exts = {".joblib", ".pkl", ".h5", ".pt", ".onnx", ".ckpt"}
+    custom_models = [p for p in CUSTOM_MODEL_DIR.iterdir() if p.suffix in allowed_exts and p.is_file()]
+    model_options: Dict[str, Path] = {}
     if info:
-        if info.get("value") is not None:
-            st.caption(
-                f"Best model: {info['model_path']} (validation R² = {info['value']:.4f})"
-            )
-        else:
-            st.caption(f"Best model: {info['model_path']}")
-        model_path = info["model_path"]
-    else:
-        st.info("Train a model to enable prediction.")
+        label = f"Best model ({info['model_path'].name})"
+        model_options[label] = info["model_path"]
+    for p in custom_models:
+        model_options[p.name] = p
+
+    if not model_options:
+        st.info("Train a model or add one to models/custom to enable prediction.")
         model_path = None
+    else:
+        selection = st.selectbox("Model", list(model_options.keys()))
+        model_path = model_options[selection]
+        if info and selection.startswith("Best model") and info.get("value") is not None:
+            st.caption(f"Validation R² = {info['value']:.4f}")
+
     disabled = model_path is None
     uploaded = st.file_uploader("Upload CSV for prediction", type=["csv"], disabled=disabled)
     if st.button("Run predict", disabled=(uploaded is None or disabled)):
@@ -408,7 +417,7 @@ with tab_predict:
                     res = cmd_predict(
                         st.session_state.cfg,
                         csv_path=str(inp_path),
-                        model_path=None,
+                        model_path=str(model_path) if model_path else None,
                         output_path=None,
                     )
                 _persist_result("predict", res)

@@ -36,12 +36,6 @@ reports/model_card.md
 # Model artifacts & checkpoints
 models/artifacts/
 models/metrics/
-*.joblib
-*.pkl
-*.h5
-*.pt
-*.onnx
-*.ckpt
 
 # Data directories (raw, interim, processed)
 data/raw/
