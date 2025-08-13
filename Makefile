@@ -1,4 +1,4 @@
-.PHONY: help venv download prepare data train evaluate notebooks
+.PHONY: help venv download prepare data train evaluate predict notebooks
 
 # Defaults
 SYS_PY := python                 # for bootstrapping venv only
@@ -14,6 +14,7 @@ help:
 	@echo "  data      Build datasets: load/split/preprocess -> data/*"
 	@echo "  train     Train model and save artifacts"
 	@echo "  evaluate  Evaluate saved model and generate metrics"
+	@echo "  predict   Run batch predictions on a CSV (INPUT=...)"
 	@echo "  notebooks Launch Jupyter Lab"
 
 venv:
@@ -33,6 +34,14 @@ train:
 
 evaluate:
 	$(CLI) evaluate --config $(CONFIG)
+
+predict:
+	@# Usage: make predict INPUT=path/to/input.csv
+	@if [ -z "$(INPUT)" ]; then \
+		echo "Usage: make predict INPUT=path/to/input.csv"; \
+		exit 1; \
+	fi
+	$(CLI) predict --config $(CONFIG) --input '$(INPUT)'
 
 notebooks:
 	jupyter lab

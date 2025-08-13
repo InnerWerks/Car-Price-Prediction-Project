@@ -1,0 +1,93 @@
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Optional, Dict
+
+import joblib
+import pandas as pd
+
+__all__ = ["predict_from_csv"]
+
+
+def _best_model_path() -> Optional[Path]:
+    """Return best model path from models/version.txt if available."""
+    version_file = Path("models/version.txt")
+    if not version_file.exists():
+        return None
+    kv = {}
+    for line in version_file.read_text().splitlines():
+        if "=" in line:
+            k, v = line.split("=", 1)
+            kv[k.strip()] = v.strip()
+    p = kv.get("model_path")
+    return Path(p) if p else None
+
+
+def _select_features(df: pd.DataFrame, cfg) -> pd.DataFrame:
+    """Select feature columns from ``df`` based on dataset config."""
+    ds = cfg.get("dataset", {})
+    feats = ds.get("features", {})
+    include = feats.get("include", []) or []
+    drop = feats.get("drop", []) or []
+    target = ds.get("target")
+    if target and target in df.columns:
+        df = df.drop(columns=[target])
+    if include:
+        return df[include].copy()
+    return df.drop(columns=[c for c in drop if c in df.columns], errors="ignore").copy()
+
+
+def predict_from_csv(
+    cfg,
+    csv_path: str,
+    model_path: Optional[str] = None,
+    output_path: Optional[str] = None,
+) -> Dict[str, str]:
+    """Run batch inference using a trained model.
+
+    Parameters
+    ----------
+    cfg: dict
+        Project configuration dictionary.
+    csv_path: str
+        Path to CSV file containing data to predict on.
+    model_path: str, optional
+        Path to a saved model (.joblib). If omitted, uses the best model
+        recorded in ``models/version.txt``.
+    output_path: str, optional
+        Where to write the predictions CSV. Defaults to ``<csv_path>_preds.csv``.
+
+    Returns
+    -------
+    Dict with keys ``model_path`` and ``predictions_path``.
+    """
+    inp = Path(csv_path)
+    if not inp.exists():
+        raise FileNotFoundError(f"Input CSV not found: {inp}")
+
+    model_file = Path(model_path) if model_path else _best_model_path()
+    if not model_file or not model_file.exists():
+        raise FileNotFoundError(
+            "Model file not found. Provide --model-path or ensure models/version.txt exists."
+        )
+
+    df = pd.read_csv(inp)
+    X = _select_features(df, cfg)
+
+    model = joblib.load(model_file)
+    preds = model.predict(X)
+
+    out = df.copy()
+    out["prediction"] = preds
+
+    # Always write to root-level output/ directory unless explicitly overridden
+    if output_path:
+        out_file = Path(output_path)
+    else:
+        out_dir = Path("output")
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_file = out_dir / f"{inp.stem}_preds.csv"
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    out.to_csv(out_file, index=False)
+
+    return {"model_path": str(model_file), "predictions_path": str(out_file)}

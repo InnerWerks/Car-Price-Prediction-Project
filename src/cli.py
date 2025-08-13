@@ -198,21 +198,39 @@ def cmd_train(cfg):
 
     return result
 
-def cmd_evaluate(cfg):
+def cmd_evaluate(cfg, model_path: Optional[str] = None):
     """Optional: wrapper for evaluation for consistency."""
     from src.training.evaluate import evaluate_saved_model
 
-    out = evaluate_saved_model(cfg)
+    out = evaluate_saved_model(cfg, model_path=model_path)
     print(f"[evaluate] Model: {out['model_path']}")
     print(f"[evaluate] Test metrics: {out['test']}")
     print(f"[evaluate] Figures: {out['figures']}")
+    return out
+
+
+def cmd_predict(cfg, csv_path: str, model_path: Optional[str] = None, output_path: Optional[str] = None):
+    """Run batch inference on a CSV file."""
+    from src.inference.predict import predict_from_csv
+
+    out = predict_from_csv(cfg, csv_path, model_path=model_path, output_path=output_path)
+    print(f"[predict] Model: {out['model_path']}")
+    print(f"[predict] Predictions: {out['predictions_path']}")
     return out
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument(
         "command",
-        choices=["prepare", "init-venv", "download-data", "build-data", "train", "evaluate"],
+        choices=[
+            "prepare",
+            "init-venv",
+            "download-data",
+            "build-data",
+            "train",
+            "evaluate",
+            "predict",
+        ],
     )
     ap.add_argument("--config", default="configs")
     ap.add_argument("--input", default=None)
@@ -220,6 +238,8 @@ def main():
     ap.add_argument("--dataset", default=None, help="Kaggle dataset slug (owner/dataset)")
     ap.add_argument("--force", action="store_true", help="Force re-download from Kaggle (overwrite)")
     ap.add_argument("--raw-filename", default=None, help="Raw CSV filename in data/raw (optional)")
+    ap.add_argument("--model-path", default=None, help="Path to trained model for predict/evaluate")
+    ap.add_argument("--output", default=None, help="Where to write predictions CSV (predict)")
     a = ap.parse_args()
     cfg = load_cfg(a.config)
 
@@ -234,7 +254,11 @@ def main():
     elif a.command == "train":
         cmd_train(cfg)
     elif a.command == "evaluate":
-        cmd_evaluate(cfg)
+        cmd_evaluate(cfg, model_path=a.model_path)
+    elif a.command == "predict":
+        if not a.input:
+            sys.exit("--input CSV path required for predict")
+        cmd_predict(cfg, csv_path=a.input, model_path=a.model_path, output_path=a.output)
 
 if __name__ == "__main__":
     main()

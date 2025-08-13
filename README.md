@@ -136,6 +136,9 @@ make data           # load -> split -> preprocess -> persist
 make train          # train model and save artifacts/metrics
 make evaluate       # evaluate saved model and generate reports
 
+# Run batch predictions on a new data
+make predict INPUT=path/to/input.csv
+
 # Start notebooks
 make notebooks
 ```
