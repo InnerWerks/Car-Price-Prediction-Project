@@ -5,9 +5,8 @@ metrics:
     - r2
 
 plots:
-  feature_importances: true
-  residuals_plot: true
-  predicted_vs_actual: true
+  pred_vs_actual: true
+  residuals: true
 
 report:
   save_json: true

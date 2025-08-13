@@ -30,6 +30,14 @@ def _make_regressor(algorithm: str, params: Dict[str, Any]):
         from sklearn.linear_model import Lasso
 
         return Lasso(**params)
+    elif algorithm in {"elasticnet", "elastic_net"}:
+        from sklearn.linear_model import ElasticNet
+
+        return ElasticNet(**params)
+    elif algorithm in {"svr", "support_vector", "support_vector_regressor"}:
+        from sklearn.svm import SVR
+
+        return SVR(**params)
     elif algorithm in {"rf", "randomforest", "random_forest"}:
         from sklearn.ensemble import RandomForestRegressor
 

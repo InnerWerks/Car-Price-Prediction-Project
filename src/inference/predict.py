@@ -1,26 +1,44 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional, Dict
+from typing import Optional, Dict, Tuple
 
 import joblib
 import pandas as pd
 
-__all__ = ["predict_from_csv"]
+__all__ = ["predict_from_csv", "best_model_path", "best_model_info"]
 
 
-def _best_model_path() -> Optional[Path]:
-    """Return best model path from models/version.txt if available."""
+def best_model_info() -> Optional[Dict[str, object]]:
+    """Return info about the best model from ``models/version.txt`` if available."""
     version_file = Path("models/version.txt")
     if not version_file.exists():
         return None
-    kv = {}
+    kv: Dict[str, str] = {}
     for line in version_file.read_text().splitlines():
         if "=" in line:
             k, v = line.split("=", 1)
             kv[k.strip()] = v.strip()
-    p = kv.get("model_path")
-    return Path(p) if p else None
+    model_path = kv.get("model_path")
+    metric_name = kv.get("metric")
+    metric_val = None
+    if kv.get("value") is not None:
+        try:
+            metric_val = float(kv.get("value"))
+        except ValueError:
+            metric_val = None
+    if not model_path:
+        return None
+    return {
+        "model_path": Path(model_path),
+        "metric": metric_name,
+        "value": metric_val,
+    }
+
+
+def best_model_path() -> Optional[Path]:
+    info = best_model_info()
+    return info["model_path"] if info else None
 
 
 def _select_features(df: pd.DataFrame, cfg) -> pd.DataFrame:
@@ -91,7 +109,7 @@ def predict_from_csv(
     if inp.suffix.lower() != ".csv":
         raise ValueError(f"Input file must be a CSV: {inp}")
 
-    model_file = Path(model_path) if model_path else _best_model_path()
+    model_file = Path(model_path) if model_path else best_model_path()
     if not model_file or not model_file.exists():
         raise FileNotFoundError(
             "Model file not found. Provide --model-path or ensure models/version.txt exists."

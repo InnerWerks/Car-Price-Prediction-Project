@@ -213,11 +213,11 @@ def cmd_build_data(cfg, raw_filename: Optional[str] = None) -> Dict[str, Any]:
         "artifacts_dir": str(Path("models/artifacts").resolve()),
     }
 
-def cmd_train(cfg) -> Dict[str, Any]:
+def cmd_train(cfg, progress_cb=None) -> Dict[str, Any]:
     """Wrapper for training to keep CLI symmetry with other commands."""
     from src.training.train import train_and_save
 
-    result = train_and_save(cfg)
+    result = train_and_save(cfg, progress_cb=progress_cb)
     return result
 
 def cmd_evaluate(cfg, model_path: Optional[str] = None) -> Dict[str, Any]:
