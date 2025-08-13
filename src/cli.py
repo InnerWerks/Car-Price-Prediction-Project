@@ -59,6 +59,19 @@ def cmd_init_venv(spawn_shell: bool = False):
     if not python.exists():
         sys.exit("[venv] Error: Python executable not found in venv.")
 
+    # On Apple Silicon Macs, ensure OpenMP runtime for XGBoost
+    if platform.system() == "Darwin" and platform.machine() == "arm64":
+        brew = shutil.which("brew")
+        if brew:
+            try:
+                subprocess.check_call([brew, "list", "libomp"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                print("[venv] Homebrew libomp already installed.")
+            except subprocess.CalledProcessError:
+                print("[venv] Installing libomp via Homebrew for XGBoost...")
+                subprocess.check_call([brew, "install", "libomp"])
+        else:
+            print("[venv] Homebrew not found. Install libomp manually: 'brew install libomp'.")
+
     # Upgrade pip and essential build tools
     print("[venv] Upgrading pip, setuptools, wheel...")
     subprocess.check_call([str(python), "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"])
