@@ -212,8 +212,10 @@ def cmd_evaluate(cfg, model_path: Optional[str] = None):
 def cmd_predict(cfg, csv_path: str, model_path: Optional[str] = None, output_path: Optional[str] = None):
     """Run batch inference on a CSV file."""
     from src.inference.predict import predict_from_csv
-
-    out = predict_from_csv(cfg, csv_path, model_path=model_path, output_path=output_path)
+    try:
+        out = predict_from_csv(cfg, csv_path, model_path=model_path, output_path=output_path)
+    except Exception as e:
+        sys.exit(f"[predict] Error: {e}")
     print(f"[predict] Model: {out['model_path']}")
     print(f"[predict] Predictions: {out['predictions_path']}")
     return out

@@ -37,6 +37,30 @@ def _select_features(df: pd.DataFrame, cfg) -> pd.DataFrame:
     return df.drop(columns=[c for c in drop if c in df.columns], errors="ignore").copy()
 
 
+def _validate_input(df: pd.DataFrame, model) -> None:
+    """Validate that ``df`` matches the model's expected feature schema."""
+    if df.empty:
+        raise ValueError("Input CSV has no rows.")
+    if df.shape[1] == 0:
+        raise ValueError("No feature columns available for prediction after preprocessing.")
+    if df.isnull().any().any():
+        cols = df.columns[df.isnull().any()].tolist()
+        raise ValueError(
+            "Input CSV contains missing values in columns: " + ", ".join(cols)
+        )
+    if hasattr(model, "feature_names_in_"):
+        expected = list(model.feature_names_in_)
+        missing = [c for c in expected if c not in df.columns]
+        unexpected = [c for c in df.columns if c not in expected]
+        if missing or unexpected:
+            parts = []
+            if missing:
+                parts.append("missing columns: " + ", ".join(missing))
+            if unexpected:
+                parts.append("unexpected columns: " + ", ".join(unexpected))
+            raise ValueError("Input CSV columns mismatch – " + "; ".join(parts))
+
+
 def predict_from_csv(
     cfg,
     csv_path: str,
@@ -64,6 +88,8 @@ def predict_from_csv(
     inp = Path(csv_path)
     if not inp.exists():
         raise FileNotFoundError(f"Input CSV not found: {inp}")
+    if inp.suffix.lower() != ".csv":
+        raise ValueError(f"Input file must be a CSV: {inp}")
 
     model_file = Path(model_path) if model_path else _best_model_path()
     if not model_file or not model_file.exists():
@@ -72,9 +98,9 @@ def predict_from_csv(
         )
 
     df = pd.read_csv(inp)
-    X = _select_features(df, cfg)
-
     model = joblib.load(model_file)
+    X = _select_features(df, cfg)
+    _validate_input(X, model)
     preds = model.predict(X)
 
     out = df.copy()
