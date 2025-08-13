@@ -9,6 +9,7 @@ import joblib
 import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.pipeline import Pipeline
 
 from src.data.load import load_raw_df
 from src.data.split import split_dataframe
@@ -34,23 +35,41 @@ def _algo_name(cfg) -> str:
     return cfg.get("model", {}).get("tabular", {}).get("algorithm", "").lower()
 
 
-def _fit_params_for_early_stopping(cfg, X_val: pd.DataFrame, y_val: pd.Series) -> Dict:
+def _fit_params_for_early_stopping(cfg, X_val: pd.DataFrame, y_val: pd.Series) -> Tuple[Dict, Dict]:
+    """Generate fit and model params for early stopping.
+
+    XGBoost 2.1 removed ``early_stopping_rounds`` from ``fit`` in the
+    scikit-learn API, so this helper now returns two dictionaries:
+
+    - ``fit_params`` – parameters passed to the estimator's ``fit``
+    - ``model_params`` – parameters set on the estimator prior to ``fit``
+    """
+
     early = cfg.get("train", {}).get("early_stopping", False)
     rounds = int(cfg.get("train", {}).get("early_stopping_rounds", 50))
     if not early:
-        return {}
+        return {}, {}
+
     algo = _algo_name(cfg)
     if algo in {"xgb", "xgboost"}:
-        return {"model__eval_set": [(X_val, y_val)], "model__early_stopping_rounds": rounds, "model__verbose": False}
+        # ``early_stopping_rounds`` must be configured on the estimator
+        fit_params = {"eval_set": [(X_val, y_val)], "verbose": False}
+        model_params = {"early_stopping_rounds": rounds}
+        return fit_params, model_params
     elif algo in {"lgbm", "lightgbm"}:
-        # LightGBM sklearn API supports callbacks early stopping
+        # LightGBM sklearn API supports callbacks for early stopping
         try:
             import lightgbm as lgb
 
-            return {"model__eval_set": [(X_val, y_val)], "model__callbacks": [lgb.early_stopping(rounds, verbose=False)]}
+            fit_params = {
+                "eval_set": [(X_val, y_val)],
+                "callbacks": [lgb.early_stopping(rounds, verbose=False)],
+            }
+            return fit_params, {}
         except Exception:
-            return {"model__eval_set": [(X_val, y_val)]}
-    return {}
+            return {"eval_set": [(X_val, y_val)]}, {}
+
+    return {}, {}
 
 
 def _metrics(y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, float]:
@@ -87,12 +106,30 @@ def train_and_save(cfg) -> Dict:
 
     # Build model pipeline
     model = build_tabular_model(cfg, X_tr)
+    algo = _algo_name(cfg)
 
-    # Early stopping fit params
-    fit_params = _fit_params_for_early_stopping(cfg, X_va, y_va)
+    use_es = cfg.get("train", {}).get("early_stopping", False)
+    needs_manual_es = use_es and algo in {"xgb", "xgboost", "lgbm", "lightgbm"}
 
-    # Fit
-    model.fit(X_tr, y_tr, **fit_params)
+    if needs_manual_es:
+        # Preprocess training/validation before passing to estimator.fit so
+        # evaluation matrices don't contain raw categorical dtypes.
+        pre = model.named_steps["preprocess"]
+        reg = model.named_steps["model"]
+        pre.fit(X_tr, y_tr)
+        X_tr_p = pre.transform(X_tr)
+        X_va_p = pre.transform(X_va)
+        fit_params, model_params = _fit_params_for_early_stopping(cfg, X_va_p, y_va)
+        if model_params:
+            reg.set_params(**model_params)
+        reg.fit(X_tr_p, y_tr, **fit_params)
+        model = Pipeline([("preprocess", pre), ("model", reg)])
+    else:
+        fit_params, model_params = _fit_params_for_early_stopping(cfg, X_va, y_va)
+        if model_params:
+            model.set_params(**{f"model__{k}": v for k, v in model_params.items()})
+        fit_params = {f"model__{k}": v for k, v in fit_params.items()}
+        model.fit(X_tr, y_tr, **fit_params)
 
     # Evaluate on val and test
     y_pred_val = model.predict(X_va)
