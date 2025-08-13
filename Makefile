@@ -1,4 +1,4 @@
-.PHONY: help venv download prepare data train evaluate predict notebooks
+.PHONY: help venv download prepare data train evaluate predict notebooks gui
 
 # Defaults
 SYS_PY := python                 # for bootstrapping venv only
@@ -16,6 +16,7 @@ help:
 	@echo "  evaluate  Evaluate saved model and generate metrics"
 	@echo "  predict   Run batch predictions on a CSV (INPUT=...)"
 	@echo "  notebooks Launch Jupyter Lab"
+    @echo "  gui       Launch Streamlit GUI"
 
 venv:
 	$(SYS_PY) -m src.cli init-venv
@@ -45,3 +46,6 @@ predict:
 
 notebooks:
 	jupyter lab
+
+gui:
+	streamlit run app_streamlit_full.py

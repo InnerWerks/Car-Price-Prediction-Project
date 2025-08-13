@@ -143,6 +143,22 @@ make predict INPUT=path/to/input.csv
 make notebooks
 ```
 
+## GUI
+
+Run a simple Streamlit UI that drives the same commands used by the CLI.
+
+```bash
+pip install -r requirements.txt
+streamlit run app_streamlit_full.py
+```
+
+Optional Makefile target:
+
+```makefile
+gui:
+	streamlit run app_streamlit_full.py
+```
+
 ## License
 
 This project is licensed under the MIT License.

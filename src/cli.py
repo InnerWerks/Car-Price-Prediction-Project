@@ -1,29 +1,67 @@
 # src/cli.py
-import argparse, sys, yaml, os, subprocess, venv, platform, shutil
+import argparse, yaml, os, subprocess, venv, platform, shutil
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Any, List
 
-def load_cfg(path):
+def load_cfg(path: str | Path) -> Dict[str, Any]:
+    """Load config from a directory of YAML files or a single YAML file.
+
+    If ``path`` is a directory, expects files dataset.yaml, model.yaml,
+    train.yaml, and eval.yaml. Returns a dict with those top-level keys.
+    """
     p = Path(path)
     if p.is_dir():
         files = ["dataset.yaml", "model.yaml", "train.yaml", "eval.yaml"]
-        cfg = {}
+        cfg: Dict[str, Any] = {}
         for f in files:
-            cfg[f.split(".")[0]] = yaml.safe_load(open(p / f))
+            fpath = p / f
+            if fpath.exists():
+                cfg[f.split(".")[0]] = yaml.safe_load(open(fpath))
+            else:
+                cfg[f.split(".")[0]] = {}
         return cfg
     return yaml.safe_load(open(p))
 
-def ensure_dirs(cfg):
-    paths = cfg["dataset"]["paths"]
-    for k in ["raw", "interim", "processed"]:
-        Path(paths[k]).mkdir(parents=True, exist_ok=True)
-    Path("models/artifacts").mkdir(parents=True, exist_ok=True)
-    Path("models/metrics").mkdir(parents=True, exist_ok=True)
-    Path("reports/figures").mkdir(parents=True, exist_ok=True)
 
-def cmd_prepare(cfg):
-    ensure_dirs(cfg)
-    print("[prepare] OK – created data/ & models/ dirs")
+def save_cfg(cfg: Dict[str, Any], path: str | Path) -> Dict[str, Any]:
+    """Save config to a directory of YAML files or a single YAML file.
+
+    - If ``path`` is a directory, writes dataset.yaml, model.yaml,
+      train.yaml, eval.yaml from keys in ``cfg``. Missing keys write
+      empty documents.
+    - If ``path`` is a file, dumps the provided dict to that file.
+    Returns a dict summarizing written files.
+    """
+    p = Path(path)
+    written: List[str] = []
+    p.mkdir(parents=True, exist_ok=True) if p.is_dir() else p.parent.mkdir(parents=True, exist_ok=True)
+    if p.is_dir():
+        for name in ["dataset", "model", "train", "eval"]:
+            f = p / f"{name}.yaml"
+            with open(f, "w") as fh:
+                yaml.safe_dump(cfg.get(name, {}) or {}, fh, sort_keys=False)
+            written.append(str(f))
+    else:
+        with open(p, "w") as fh:
+            yaml.safe_dump(cfg, fh, sort_keys=False)
+        written.append(str(p))
+    return {"ok": True, "written": written}
+
+def ensure_dirs(cfg) -> Dict[str, Any]:
+    paths = cfg["dataset"]["paths"]
+    created = []
+    for k in ["raw", "interim", "processed"]:
+        d = Path(paths[k])
+        d.mkdir(parents=True, exist_ok=True)
+        created.append(str(d))
+    for d in [Path("models/artifacts"), Path("models/metrics"), Path("reports/figures")]:
+        d.mkdir(parents=True, exist_ok=True)
+        created.append(str(d))
+    return {"ok": True, "created": created}
+
+def cmd_prepare(cfg) -> Dict[str, Any]:
+    res = ensure_dirs(cfg)
+    return {"ok": True, "message": "Created data, models, reports dirs", **res}
 
 def _project_root() -> Path:
     # Assumes this file lives at <project>/src/cli.py
@@ -40,24 +78,22 @@ def _venv_paths(venv_dir: Path):
         activate = venv_dir / "bin" / "activate"
     return python, pip, activate
 
-def cmd_init_venv(spawn_shell: bool = False):
+def cmd_init_venv(spawn_shell: bool = False) -> Dict[str, Any]:
     root = _project_root()
     venv_dir = root / ".venv"
     req_file = root / "requirements.txt"
-
-    print(f"[venv] Project root: {root}")
-    print(f"[venv] Target venv: {venv_dir}")
+    notes: List[str] = []
 
     # Create or reuse the venv
     if not venv_dir.exists():
-        print("[venv] Creating virtual environment...")
+        notes.append("Creating virtual environment...")
         venv.create(venv_dir, with_pip=True)
     else:
-        print("[venv] Reusing existing virtual environment.")
+        notes.append("Reusing existing virtual environment.")
 
     python, pip, activate = _venv_paths(venv_dir)
     if not python.exists():
-        sys.exit("[venv] Error: Python executable not found in venv.")
+        raise RuntimeError("Python executable not found in venv.")
 
     # On Apple Silicon Macs, ensure OpenMP runtime for XGBoost
     if platform.system() == "Darwin" and platform.machine() == "arm64":
@@ -65,159 +101,137 @@ def cmd_init_venv(spawn_shell: bool = False):
         if brew:
             try:
                 subprocess.check_call([brew, "list", "libomp"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                print("[venv] Homebrew libomp already installed.")
+                notes.append("Homebrew libomp already installed.")
             except subprocess.CalledProcessError:
-                print("[venv] Installing libomp via Homebrew for XGBoost...")
+                notes.append("Installing libomp via Homebrew for XGBoost...")
                 subprocess.check_call([brew, "install", "libomp"])
         else:
-            print("[venv] Homebrew not found. Install libomp manually: 'brew install libomp'.")
+            notes.append("Homebrew not found. Install libomp manually: 'brew install libomp'.")
 
     # Upgrade pip and essential build tools
-    print("[venv] Upgrading pip, setuptools, wheel...")
+    notes.append("Upgrading pip, setuptools, wheel...")
     subprocess.check_call([str(python), "-m", "pip", "install", "--upgrade", "pip", "setuptools", "wheel"])
 
     # Install requirements if present
     if req_file.exists():
-        print(f"[venv] Installing requirements from {req_file}...")
+        notes.append(f"Installing requirements from {req_file}...")
         subprocess.check_call([str(pip), "install", "-r", str(req_file)])
     else:
-        print("[venv] No requirements.txt found; skipping dependency install.")
+        notes.append("No requirements.txt found; skipping dependency install.")
 
-    # Summarize
-    print("[venv] Done.")
-    print(f"[venv] Python: {python}")
-    print(f"[venv] To activate manually:")
-    if platform.system() == "Windows":
-        print(f"  {venv_dir}\\Scripts\\activate.bat")
-    else:
-        print(f"  source {activate}")
+    summary = {
+        "ok": True,
+        "root": str(root),
+        "venv_dir": str(venv_dir),
+        "python": str(python),
+        "pip": str(pip),
+        "activate": str(activate),
+        "notes": notes,
+    }
 
     # Optionally spawn an activated shell
     if spawn_shell:
         if platform.system() == "Windows":
             # Launch cmd with venv activated
             cmd = ["cmd.exe", "/k", str(activate)]
-            print("[venv] Spawning activated cmd shell...")
             os.execvp(cmd[0], cmd)
         else:
             # Spawn interactive bash/zsh with venv activated
             shell = shutil.which(os.environ.get("SHELL", "bash")) or "/bin/bash"
-            print(f"[venv] Spawning activated shell: {shell} ...")
             os.execvp(shell, [shell, "-i", "-c", f"source '{activate}'; exec {shell} -i"])  
+    return summary
 
-def _load_env_from_dotenv(dotenv_path: Path) -> None:
+def _load_env_from_dotenv(dotenv_path: Path) -> Dict[str, Any]:
     try:
         from dotenv import load_dotenv
     except Exception:
-        print("[env] python-dotenv not installed. Proceeding without auto-loading .env.")
-        return
+        return {"ok": False, "loaded": False, "message": "python-dotenv not installed"}
     if dotenv_path.exists():
         load_dotenv(dotenv_path)
-        print(f"[env] Loaded environment variables from {dotenv_path}")
+        return {"ok": True, "loaded": True, "path": str(dotenv_path)}
     else:
-        print(f"[env] No .env found at {dotenv_path} (skipping)")
+        return {"ok": True, "loaded": False, "path": str(dotenv_path)}
 
 def _get_kaggle_dataset_slug(cfg, override: Optional[str]) -> Optional[str]:
     if override:
         return override
     return (cfg.get("dataset", {}).get("kaggle", {}) or {}).get("dataset")
 
-def cmd_download_data(cfg, dataset_slug: Optional[str] = None, force: bool = False):
+def cmd_download_data(cfg, dataset_slug: Optional[str] = None, force: bool = False) -> Dict[str, Any]:
     root = _project_root()
-    _load_env_from_dotenv(root / ".env")
+    _ = _load_env_from_dotenv(root / ".env")
 
     # Validate credentials
     user = os.getenv("KAGGLE_USERNAME")
     key = os.getenv("KAGGLE_KEY")
     if not user or not key:
-        sys.exit("[kaggle] Missing KAGGLE_USERNAME/KAGGLE_KEY in environment. Set them in .env or your shell.")
+        raise RuntimeError("Missing KAGGLE_USERNAME/KAGGLE_KEY in environment. Set them in .env or your shell.")
 
     # Resolve dataset slug
     slug = _get_kaggle_dataset_slug(cfg, dataset_slug)
     if not slug:
-        sys.exit("[kaggle] Dataset slug not provided. Use --dataset or add dataset.kaggle.dataset in configs/dataset.yaml")
+        raise RuntimeError("Dataset slug not provided. Use --dataset or set dataset.kaggle.dataset in configs/dataset.yaml")
 
     # Ensure output dirs
     ensure_dirs(cfg)
     raw_dir = Path(cfg["dataset"]["paths"]["raw"]).resolve()
     raw_dir.mkdir(parents=True, exist_ok=True)
-
-    print(f"[kaggle] Downloading '{slug}' to {raw_dir} ...")
     try:
         from kaggle.api.kaggle_api_extended import KaggleApi
     except Exception:
-        sys.exit("[kaggle] The 'kaggle' package is not installed. Activate your venv and run 'pip install kaggle'.")
+        raise ImportError("The 'kaggle' package is not installed. Activate your venv and run 'pip install kaggle'.")
 
     api = KaggleApi()
     try:
         api.authenticate()
     except Exception as e:
-        sys.exit(f"[kaggle] Authentication failed: {e}")
+        raise RuntimeError(f"Kaggle authentication failed: {e}")
 
     try:
-        api.dataset_download_files(dataset=slug, path=str(raw_dir), unzip=True, force=force, quiet=False)
+        api.dataset_download_files(dataset=slug, path=str(raw_dir), unzip=True, force=force, quiet=True)
     except Exception as e:
-        sys.exit(f"[kaggle] Download failed: {e}")
+        raise RuntimeError(f"Kaggle download failed: {e}")
+    return {"ok": True, "dataset": slug, "raw_dir": str(raw_dir)}
 
-    print("[kaggle] Download complete.")
-
-def cmd_build_data(cfg, raw_filename: Optional[str] = None):
+def cmd_build_data(cfg, raw_filename: Optional[str] = None) -> Dict[str, Any]:
     from src.data.load import load_raw_df
     from src.data.split import split_dataframe, persist_interim_splits
     from src.data.preprocess import preprocess_and_persist
 
     # Ensure folders exist
     ensure_dirs(cfg)
-
-    print("[data] Loading raw dataset...")
     df, path = load_raw_df(cfg, filename=raw_filename)
-    print(f"[data] Loaded {len(df):,} rows from {path}")
-
-    print("[data] Splitting into train/val/test...")
     df_tr, df_va, df_te = split_dataframe(df, cfg)
     persist_interim_splits(df_tr, df_va, df_te, cfg)
-    print("[data] Saved interim splits to data/interim/")
-
-    print("[data] Preprocessing and writing processed datasets...")
     preprocess_and_persist(df_tr, df_va, df_te, cfg)
-    print("[data] Saved processed datasets to data/processed/ and preprocessor to models/artifacts/")
+    return {
+        "ok": True,
+        "raw_path": str(path),
+        "rows": int(len(df)),
+        "interim_dir": str(Path(cfg["dataset"]["paths"]["interim"]).resolve()),
+        "processed_dir": str(Path(cfg["dataset"]["paths"]["processed"]).resolve()),
+        "artifacts_dir": str(Path("models/artifacts").resolve()),
+    }
 
-def cmd_train(cfg):
+def cmd_train(cfg) -> Dict[str, Any]:
     """Wrapper for training to keep CLI symmetry with other commands."""
     from src.training.train import train_and_save
 
     result = train_and_save(cfg)
-
-    print(f"[train] Run: {result['run_name']}")
-    print(f"[train] Model saved to: {result['model_path']}")
-    print(f"[train] Metrics saved to: {result['metrics_path']}")
-    print(f"[train] Val: {result['val_metrics']}")
-    print(f"[train] Test: {result['test_metrics']}")
-    if result.get("best_updated"):
-        print("[train] Updated models/version.txt with new best model.")
-
     return result
 
-def cmd_evaluate(cfg, model_path: Optional[str] = None):
+def cmd_evaluate(cfg, model_path: Optional[str] = None) -> Dict[str, Any]:
     """Optional: wrapper for evaluation for consistency."""
     from src.training.evaluate import evaluate_saved_model
 
     out = evaluate_saved_model(cfg, model_path=model_path)
-    print(f"[evaluate] Model: {out['model_path']}")
-    print(f"[evaluate] Test metrics: {out['test']}")
-    print(f"[evaluate] Figures: {out['figures']}")
     return out
 
 
-def cmd_predict(cfg, csv_path: str, model_path: Optional[str] = None, output_path: Optional[str] = None):
+def cmd_predict(cfg, csv_path: str, model_path: Optional[str] = None, output_path: Optional[str] = None) -> Dict[str, Any]:
     """Run batch inference on a CSV file."""
     from src.inference.predict import predict_from_csv
-    try:
-        out = predict_from_csv(cfg, csv_path, model_path=model_path, output_path=output_path)
-    except Exception as e:
-        sys.exit(f"[predict] Error: {e}")
-    print(f"[predict] Model: {out['model_path']}")
-    print(f"[predict] Predictions: {out['predictions_path']}")
+    out = predict_from_csv(cfg, csv_path, model_path=model_path, output_path=output_path)
     return out
 
 def main():
@@ -246,21 +260,54 @@ def main():
     cfg = load_cfg(a.config)
 
     if a.command == "prepare":
-        cmd_prepare(cfg)
+        res = cmd_prepare(cfg)
+        print(res.get("message", "prepare completed"))
     elif a.command == "init-venv":
-        cmd_init_venv(spawn_shell=a.shell)
+        try:
+            res = cmd_init_venv(spawn_shell=a.shell)
+            print("[venv] Done. Python:", res.get("python"))
+        except Exception as e:
+            print(f"[venv] Error: {e}")
+            raise SystemExit(1)
     elif a.command == "download-data":
-        cmd_download_data(cfg, dataset_slug=a.dataset, force=a.force)
+        try:
+            res = cmd_download_data(cfg, dataset_slug=a.dataset, force=a.force)
+            print(f"[kaggle] Downloaded {res['dataset']} to {res['raw_dir']}")
+        except Exception as e:
+            print(f"[kaggle] Error: {e}")
+            raise SystemExit(1)
     elif a.command == "build-data":
-        cmd_build_data(cfg, raw_filename=a.raw_filename)
+        try:
+            res = cmd_build_data(cfg, raw_filename=a.raw_filename)
+            print(f"[data] Built datasets from {res['raw_path']} ({res['rows']} rows)")
+        except Exception as e:
+            print(f"[data] Error: {e}")
+            raise SystemExit(1)
     elif a.command == "train":
-        cmd_train(cfg)
+        try:
+            res = cmd_train(cfg)
+            print(f"[train] Run: {res['run_name']} | Model: {res['model_path']}")
+            print(f"[train] Val: {res['val_metrics']} | Test: {res['test_metrics']}")
+        except Exception as e:
+            print(f"[train] Error: {e}")
+            raise SystemExit(1)
     elif a.command == "evaluate":
-        cmd_evaluate(cfg, model_path=a.model_path)
+        try:
+            res = cmd_evaluate(cfg, model_path=a.model_path)
+            print(f"[evaluate] Model: {res['model_path']} | Test: {res['test']}")
+        except Exception as e:
+            print(f"[evaluate] Error: {e}")
+            raise SystemExit(1)
     elif a.command == "predict":
         if not a.input:
-            sys.exit("--input CSV path required for predict")
-        cmd_predict(cfg, csv_path=a.input, model_path=a.model_path, output_path=a.output)
+            print("--input CSV path required for predict")
+            raise SystemExit(2)
+        try:
+            res = cmd_predict(cfg, csv_path=a.input, model_path=a.model_path, output_path=a.output)
+            print(f"[predict] Model: {res['model_path']} | Predictions: {res['predictions_path']}")
+        except Exception as e:
+            print(f"[predict] Error: {e}")
+            raise SystemExit(1)
 
 if __name__ == "__main__":
     main()
