@@ -1,7 +1,8 @@
 .PHONY: help venv download prepare data train evaluate notebooks
 
 # Defaults
-PY ?= python
+SYS_PY := python                 # for bootstrapping venv only
+PY := .venv/bin/python           # venv python for everything else
 CLI := $(PY) -m src.cli
 CONFIG ?= configs
 
@@ -16,7 +17,7 @@ help:
 	@echo "  notebooks Launch Jupyter Lab"
 
 venv:
-	$(CLI) init-venv
+	$(SYS_PY) -m src.cli init-venv
 
 download:
 	$(CLI) download-data --config $(CONFIG)
