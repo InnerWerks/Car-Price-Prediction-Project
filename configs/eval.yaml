@@ -1,14 +1,17 @@
 metrics:
   regression:
-    - rmse
-    - mae
-    - r2
-
+  - r2
+  - rmse
+  - mae
+  - medae
+  - explained_variance
 plots:
+  feature_importances: false
+  residual_hist: true
+  residual_qq: true
+  learning_curve: false
+  pdp_2d: false
   pred_vs_actual: true
-  residuals: true
-
-report:
-  save_json: true
-  save_markdown: true
-  markdown_path: reports/model_card.md
+  prediction_error_hist: false
+  pdp_1d: false
+  residuals_vs_fitted: true

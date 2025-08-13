@@ -16,7 +16,7 @@ help:
 	@echo "  evaluate  Evaluate saved model and generate metrics"
 	@echo "  predict   Run batch predictions on a CSV (INPUT=...)"
 	@echo "  notebooks Launch Jupyter Lab"
-    @echo "  gui       Launch Streamlit GUI"
+	@echo "  gui       Launch Streamlit GUI"
 
 venv:
 	$(SYS_PY) -m src.cli init-venv

@@ -87,7 +87,7 @@ git clone https://github.com/InnerWerks/Car-Price-Prediction-Project.git
 cd car-price-prediction
 
 # Run the app
-streamlit run app_streamlit_full.py
+make gui
 ```
 
 ## License
