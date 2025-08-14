@@ -404,7 +404,9 @@ with tab_predict:
 
     disabled = model_path is None
     uploaded = st.file_uploader("Upload CSV for prediction", type=["csv"], disabled=disabled)
-    if st.button("Run predict", disabled=(uploaded is None or disabled)):
+
+    c_pred, c_test = st.columns(2)
+    if c_pred.button("Run predict", disabled=(uploaded is None or disabled)):
         if uploaded is None:
             st.warning("Please upload a CSV file.")
         else:
@@ -433,4 +435,35 @@ with tab_predict:
                     )
             except Exception as e:
                 st.error(str(e))
+
+    if c_test.button("Test on Kaggle data", disabled=disabled):
+        try:
+            with st.spinner("Evaluating on test data..."):
+                res = cmd_evaluate(
+                    st.session_state.cfg,
+                    model_path=str(model_path) if model_path else None,
+                )
+            _persist_result("predict_test", res)
+            st.success("Test evaluation complete.")
+            metrics = res.get("test", {})
+            show_keys = ["r2", "rmse", "mae", "medae", "explained_variance"]
+            if metrics:
+                mcols = st.columns(len(show_keys))
+                for i, k in enumerate(show_keys):
+                    v = metrics.get(k)
+                    if v is not None:
+                        mcols[i].metric(k.upper(), f"{v:.4f}")
+            figs = res.get("figures", {})
+            if figs:
+                st.markdown("#### Figures")
+                fcols = st.columns(2)
+                idx = 0
+                for name, path in figs.items():
+                    img = Path(path)
+                    if img.exists():
+                        with fcols[idx % 2]:
+                            st.image(str(img), caption=name.replace("_", " ").title())
+                        idx += 1
+        except Exception as e:
+            st.error(str(e))
 
