@@ -20,6 +20,8 @@ Contains various attributes:
 
 ```
 Car-Price-Prediction-Project/
+├── LICENSE
+├── Makefile
 ├── README.md
 ├── app_streamlit_full.py
 ├── configs/
@@ -27,6 +29,7 @@ Car-Price-Prediction-Project/
 │   ├── eval.yaml
 │   ├── model.yaml
 │   └── train.yaml
+├── models/                 # trained model artifacts
 ├── requirements.txt
 └── src/
     ├── cli.py
@@ -67,6 +70,14 @@ Car-Price-Prediction-Project/
    - Metrics: R², MAE, RMSE
    - Compare models and select the most accurate one
 
+## Results
+
+Developed and fine-tuned an XGBoost Regressor model using Kaggle's Car Price Prediction dataset, achieving:
+
+- **R²:** 0.9585
+- **RMSE:** 0.9781
+- **MAE:** 0.5927
+
 ## Tools & Libraries
 
 - **Python 3.x** – Core programming language for data processing and modeling
@@ -84,7 +95,7 @@ Car-Price-Prediction-Project/
 git clone https://github.com/InnerWerks/Car-Price-Prediction-Project.git
 
 # Navigate into the project directory
-cd car-price-prediction
+cd Car-Price-Prediction-Project
 
 # Run the app
 make gui
